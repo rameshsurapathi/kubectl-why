@@ -1,0 +1,339 @@
+package render
+
+import (
+	"fmt"
+	"strings"
+
+	"github.com/charmbracelet/lipgloss"
+	"github.com/rameshsurapathi/kubectl-why/pkg/analyzer"
+)
+
+// ── Styles ────────────────────────────────────────────────
+
+var (
+	// Colors
+	colorRed    = lipgloss.Color("196")
+	colorYellow = lipgloss.Color("220")
+	colorGreen  = lipgloss.Color("82")
+	colorBlue   = lipgloss.Color("39")
+	colorGray   = lipgloss.Color("241")
+	colorWhite  = lipgloss.Color("255")
+
+	// Header box
+	headerBox = lipgloss.NewStyle().
+			Border(lipgloss.RoundedBorder()).
+			BorderForeground(lipgloss.Color("241")).
+			Padding(0, 1).
+			MarginBottom(1)
+
+	// Resource name in header
+	resourceStyle = lipgloss.NewStyle().
+			Foreground(colorWhite).
+			Bold(true)
+
+	// Namespace in header
+	namespaceStyle = lipgloss.NewStyle().
+			Foreground(colorGray)
+
+	// Section label (●  Why, ●  Evidence, etc.)
+	sectionDot = lipgloss.NewStyle().
+			Foreground(colorBlue).
+			Bold(true)
+
+	labelStyle = lipgloss.NewStyle().
+			Foreground(colorGray).
+			Width(22)
+
+	// Status styles by severity
+	statusCritical = lipgloss.NewStyle().
+			Foreground(colorRed).
+			Bold(true)
+
+	statusWarning = lipgloss.NewStyle().
+			Foreground(colorYellow).
+			Bold(true)
+
+	statusHealthy = lipgloss.NewStyle().
+			Foreground(colorGreen).
+			Bold(true)
+
+	// Reason text
+	reasonCritical = lipgloss.NewStyle().
+			Foreground(colorRed)
+
+	reasonWarning = lipgloss.NewStyle().
+			Foreground(colorYellow)
+
+	// Evidence value
+	evidenceValue = lipgloss.NewStyle().
+			Foreground(colorWhite)
+
+	// Fix command block
+	fixBlock = lipgloss.NewStyle().
+			Background(lipgloss.Color("235")).
+			Foreground(lipgloss.Color("150")).
+			PaddingLeft(1).
+			PaddingRight(1).
+			MarginLeft(4)
+
+	// Fix description comment
+	fixComment = lipgloss.NewStyle().
+			Foreground(colorGray).
+			MarginLeft(4)
+
+	// Log lines
+	logLine = lipgloss.NewStyle().
+			Foreground(colorGray).
+			MarginLeft(4)
+
+	// Divider
+	dividerStyle = lipgloss.NewStyle().
+			Foreground(lipgloss.Color("238"))
+
+	// Runbook hint at bottom
+	runbookHint = lipgloss.NewStyle().
+			Foreground(colorBlue).
+			MarginLeft(2)
+
+	// Next check items
+	nextCheckStyle = lipgloss.NewStyle().
+			Foreground(colorGray).
+			MarginLeft(4)
+)
+
+// ── Main renderer ─────────────────────────────────────────
+
+func Text(result analyzer.AnalysisResult) error {
+	fmt.Println()
+
+	// ── Header ───────────────────────────────────────
+	headerContent := fmt.Sprintf("%s  %s",
+		resourceStyle.Render(result.Resource),
+		namespaceStyle.Render("· "+result.Namespace),
+	)
+	fmt.Println(headerBox.Render(headerContent))
+
+	// ── Status line ──────────────────────────────────
+	printStatusLine(result)
+	fmt.Println()
+
+	// ── Why (Primary Reason) ─────────────────────────
+	if result.PrimaryReason != "" {
+		fmt.Printf("  %s Why\n",
+			sectionDot.Render("●"))
+		printReason(result)
+		fmt.Println()
+	}
+
+	// ── Evidence ─────────────────────────────────────
+	if len(result.Evidence) > 0 {
+		fmt.Printf("  %s Evidence\n",
+			sectionDot.Render("●"))
+		for _, e := range result.Evidence {
+			printEvidence(e)
+		}
+		fmt.Println()
+	}
+
+	// ── Last Logs ────────────────────────────────────
+	if result.RecentLogs != "" {
+		fmt.Printf("  %s Last logs\n",
+			sectionDot.Render("●"))
+		printLogs(result.RecentLogs)
+		fmt.Println()
+	}
+
+	// ── Fix Commands ─────────────────────────────────
+	if len(result.FixCommands) > 0 {
+		fmt.Printf("  %s Fix\n",
+			sectionDot.Render("●"))
+		for _, fix := range result.FixCommands {
+			printFixCommand(fix)
+		}
+		fmt.Println()
+	}
+
+	// ── Next Checks ──────────────────────────────────
+	if len(result.NextChecks) > 0 {
+		fmt.Printf("  %s Also check\n",
+			sectionDot.Render("●"))
+		for _, check := range result.NextChecks {
+			fmt.Println(nextCheckStyle.Render("→  " + check))
+		}
+		fmt.Println()
+	}
+
+	// ── Runbook hint ─────────────────────────────────
+	// (Hidden for now until the separate Runbook tool is built)
+	/*
+	if result.RunbookHint != "" {
+		fmt.Println(dividerStyle.Render(
+			strings.Repeat("─", 65)))
+		fmt.Println(runbookHint.Render(
+			"→  " + result.RunbookHint))
+		fmt.Println()
+	}
+	*/
+
+	return nil
+}
+
+// ── Helper renderers ──────────────────────────────────────
+
+func printStatusLine(result analyzer.AnalysisResult) {
+	label := labelStyle.Render("  Status")
+
+	var status string
+	switch result.Severity {
+	case "critical":
+		status = statusCritical.Render(result.Status)
+	case "warning":
+		status = statusWarning.Render(result.Status)
+	case "healthy":
+		status = statusHealthy.Render(result.Status)
+	default:
+		status = result.Status
+	}
+
+	fmt.Printf("%s  %s\n", label, status)
+}
+
+func printReason(result analyzer.AnalysisResult) {
+	// Print each summary line with appropriate color
+	for _, line := range result.Summary {
+		var styled string
+		switch result.Severity {
+		case "critical":
+			styled = reasonCritical.Render(
+				"    " + line)
+		case "warning":
+			styled = reasonWarning.Render(
+				"    " + line)
+		default:
+			styled = "    " + line
+		}
+		fmt.Println(styled)
+	}
+}
+
+func printEvidence(e analyzer.Evidence) {
+	label := labelStyle.Render("    " + e.Label)
+	value := evidenceValue.Render(e.Value)
+
+	// If evidence has a progress bar (memory/CPU usage)
+	if e.Bar != nil {
+		if e.Bar.Max == 0 {
+			e.Bar.Max = 1
+		}
+		bar := renderBar(e.Bar.Current, e.Bar.Max)
+		pct := float64(e.Bar.Current) /
+			float64(e.Bar.Max) * 100
+
+		// Color the bar red if >80%
+		barStyled := lipgloss.NewStyle().
+			Foreground(barColor(pct)).
+			Render(bar)
+
+		fmt.Printf("%s  %s  %s  %.0f%%\n",
+			label,
+			value,
+			barStyled,
+			pct,
+		)
+	} else {
+		fmt.Printf("%s  %s\n", label, value)
+	}
+}
+
+func printFixCommand(fix analyzer.FixCommand) {
+	if fix.Description != "" {
+		fmt.Println(fixComment.Render(
+			"# " + fix.Description))
+	}
+
+	// Multi-line command support
+	lines := strings.Split(fix.Command, "\n")
+	for i, line := range lines {
+		if i == 0 {
+			fmt.Println(fixBlock.Render(line))
+		} else {
+			// Indent continuation lines
+			fmt.Println(fixBlock.Render("  " + line))
+		}
+	}
+	fmt.Println()
+}
+
+func printLogs(logs string) {
+	lines := strings.Split(strings.TrimSpace(logs), "\n")
+
+	// Show last 5 lines only — most recent is most relevant
+	start := 0
+	if len(lines) > 5 {
+		start = len(lines) - 5
+		// Show indicator that logs were trimmed
+		fmt.Println(logLine.Render(
+			fmt.Sprintf("... (%d lines above hidden)",
+				start)))
+	}
+
+	for _, line := range lines[start:] {
+		if line == "" {
+			continue
+		}
+		// Highlight error lines in the logs
+		if isErrorLine(line) {
+			fmt.Println(lipgloss.NewStyle().
+				Foreground(colorRed).
+				MarginLeft(4).
+				Render(line))
+		} else {
+			fmt.Println(logLine.Render(line))
+		}
+	}
+}
+
+// renderBar creates a visual progress bar
+// e.g. "████████████░░░░"
+func renderBar(current, max int64) string {
+	if max == 0 {
+		return ""
+	}
+	total := 12
+	filled := int(float64(current) /
+		float64(max) * float64(total))
+	if filled > total {
+		filled = total
+	}
+	empty := total - filled
+	return strings.Repeat("█", filled) +
+		strings.Repeat("░", empty)
+}
+
+// barColor returns red if >80%, yellow if >60%, green otherwise
+func barColor(pct float64) lipgloss.Color {
+	switch {
+	case pct >= 80:
+		return colorRed
+	case pct >= 60:
+		return colorYellow
+	default:
+		return colorGreen
+	}
+}
+
+// isErrorLine returns true if a log line looks like an error
+func isErrorLine(line string) bool {
+	lower := strings.ToLower(line)
+	errorKeywords := []string{
+		"error", "exception", "fatal", "panic",
+		"failed", "failure", "critical", "err:",
+		"oom", "killed", "crash",
+	}
+	for _, kw := range errorKeywords {
+		if strings.Contains(lower, kw) {
+			return true
+		}
+	}
+	return false
+}

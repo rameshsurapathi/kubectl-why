@@ -1,0 +1,25 @@
+{
+  "apiVersion": "v1",
+  "kind": "Pod",
+  "metadata": {
+    "name": "appcrash-test",
+    "namespace": "default"
+  },
+  "status": {
+    "phase": "Failed",
+    "containerStatuses": [
+      {
+        "name": "app-container",
+        "ready": false,
+        "restartCount": 0,
+        "state": {
+          "terminated": {
+            "exitCode": 1,
+            "reason": "Error",
+            "message": "panic: assignment to entry in nil map"
+          }
+        }
+      }
+    ]
+  }
+}

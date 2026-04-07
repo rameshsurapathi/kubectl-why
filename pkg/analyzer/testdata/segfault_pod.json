@@ -1,0 +1,25 @@
+{
+  "apiVersion": "v1",
+  "kind": "Pod",
+  "metadata": {
+    "name": "segfault-test",
+    "namespace": "default"
+  },
+  "status": {
+    "phase": "Failed",
+    "containerStatuses": [
+      {
+        "name": "app-container",
+        "ready": false,
+        "restartCount": 0,
+        "state": {
+          "terminated": {
+            "exitCode": 139,
+            "reason": "Error",
+            "message": "Segmentation fault (core dumped)"
+          }
+        }
+      }
+    ]
+  }
+}

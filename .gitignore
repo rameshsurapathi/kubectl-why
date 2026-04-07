@@ -1,0 +1,5 @@
+kubectl-why
+kubectl-why-*
+dist/
+*.test
+*.out

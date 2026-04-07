@@ -1,0 +1,190 @@
+{
+  "apiVersion": "v1",
+  "kind": "Pod",
+  "metadata": {
+    "creationTimestamp": "2026-04-06T11:04:06Z",
+    "labels": {
+      "run": "crash-test"
+    },
+    "name": "crash-test",
+    "namespace": "default",
+    "resourceVersion": "642572",
+    "uid": "e99fea5c-7468-4007-9585-ff26770c56fd"
+  },
+  "spec": {
+    "containers": [
+      {
+        "args": [
+          "sh",
+          "-c",
+          "exit 1"
+        ],
+        "image": "busybox",
+        "imagePullPolicy": "Always",
+        "name": "crash-test",
+        "resources": {},
+        "terminationMessagePath": "/dev/termination-log",
+        "terminationMessagePolicy": "File",
+        "volumeMounts": [
+          {
+            "mountPath": "/var/run/secrets/kubernetes.io/serviceaccount",
+            "name": "kube-api-access-qm5vc",
+            "readOnly": true
+          }
+        ]
+      }
+    ],
+    "dnsPolicy": "ClusterFirst",
+    "enableServiceLinks": true,
+    "nodeName": "devops-playground-worker",
+    "preemptionPolicy": "PreemptLowerPriority",
+    "priority": 0,
+    "restartPolicy": "Always",
+    "schedulerName": "default-scheduler",
+    "securityContext": {},
+    "serviceAccount": "default",
+    "serviceAccountName": "default",
+    "terminationGracePeriodSeconds": 30,
+    "tolerations": [
+      {
+        "effect": "NoExecute",
+        "key": "node.kubernetes.io/not-ready",
+        "operator": "Exists",
+        "tolerationSeconds": 300
+      },
+      {
+        "effect": "NoExecute",
+        "key": "node.kubernetes.io/unreachable",
+        "operator": "Exists",
+        "tolerationSeconds": 300
+      }
+    ],
+    "volumes": [
+      {
+        "name": "kube-api-access-qm5vc",
+        "projected": {
+          "defaultMode": 420,
+          "sources": [
+            {
+              "serviceAccountToken": {
+                "expirationSeconds": 3607,
+                "path": "token"
+              }
+            },
+            {
+              "configMap": {
+                "items": [
+                  {
+                    "key": "ca.crt",
+                    "path": "ca.crt"
+                  }
+                ],
+                "name": "kube-root-ca.crt"
+              }
+            },
+            {
+              "downwardAPI": {
+                "items": [
+                  {
+                    "fieldRef": {
+                      "apiVersion": "v1",
+                      "fieldPath": "metadata.namespace"
+                    },
+                    "path": "namespace"
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      }
+    ]
+  },
+  "status": {
+    "conditions": [
+      {
+        "lastProbeTime": null,
+        "lastTransitionTime": "2026-04-06T11:04:14Z",
+        "status": "True",
+        "type": "PodReadyToStartContainers"
+      },
+      {
+        "lastProbeTime": null,
+        "lastTransitionTime": "2026-04-06T11:04:06Z",
+        "status": "True",
+        "type": "Initialized"
+      },
+      {
+        "lastProbeTime": null,
+        "lastTransitionTime": "2026-04-06T11:04:06Z",
+        "message": "containers with unready status: [crash-test]",
+        "reason": "ContainersNotReady",
+        "status": "False",
+        "type": "Ready"
+      },
+      {
+        "lastProbeTime": null,
+        "lastTransitionTime": "2026-04-06T11:04:06Z",
+        "message": "containers with unready status: [crash-test]",
+        "reason": "ContainersNotReady",
+        "status": "False",
+        "type": "ContainersReady"
+      },
+      {
+        "lastProbeTime": null,
+        "lastTransitionTime": "2026-04-06T11:04:06Z",
+        "status": "True",
+        "type": "PodScheduled"
+      }
+    ],
+    "containerStatuses": [
+      {
+        "containerID": "containerd://2b3ea7b0b2af348f73801cd5b83c6652e627eaccf4e58ecc7cf96662bebcfa46",
+        "image": "docker.io/library/busybox:latest",
+        "imageID": "docker.io/library/busybox@sha256:1487d0af5f52b4ba31c7e465126ee2123fe3f2305d638e7827681e7cf6c83d5e",
+        "lastState": {
+          "terminated": {
+            "containerID": "containerd://2b3ea7b0b2af348f73801cd5b83c6652e627eaccf4e58ecc7cf96662bebcfa46",
+            "exitCode": 2,
+            "finishedAt": "2026-04-06T11:20:39Z",
+            "reason": "Error",
+            "startedAt": "2026-04-06T11:20:39Z"
+          }
+        },
+        "name": "crash-test",
+        "ready": false,
+        "restartCount": 8,
+        "started": false,
+        "state": {
+          "waiting": {
+            "message": "back-off 5m0s restarting failed container=crash-test pod=crash-test_default(e99fea5c-7468-4007-9585-ff26770c56fd)",
+            "reason": "CrashLoopBackOff"
+          }
+        },
+        "volumeMounts": [
+          {
+            "mountPath": "/var/run/secrets/kubernetes.io/serviceaccount",
+            "name": "kube-api-access-qm5vc",
+            "readOnly": true,
+            "recursiveReadOnly": "Disabled"
+          }
+        ]
+      }
+    ],
+    "hostIP": "172.20.0.3",
+    "hostIPs": [
+      {
+        "ip": "172.20.0.3"
+      }
+    ],
+    "phase": "Running",
+    "podIP": "10.244.1.30",
+    "podIPs": [
+      {
+        "ip": "10.244.1.30"
+      }
+    ],
+    "qosClass": "BestEffort",
+    "startTime": "2026-04-06T11:04:06Z"
+  }
+}
