@@ -35,8 +35,9 @@ section the whole time.
 > Pre-built binaries have no Go dependency.
 
 ```bash
-# Homebrew (macOS / Linux) — coming soon
-# brew install rameshsurapathi/tap/kubectl-why
+# Homebrew (macOS / Linux)
+brew tap rameshsurapathi/tap
+brew install kubectl-why
 
 # Go install  (requires Go 1.25+)
 go install github.com/rameshsurapathi/kubectl-why@latest
