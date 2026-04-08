@@ -17,11 +17,19 @@ var (
 	tailLines   int64
 )
 
+// Build-time version info — injected by goreleaser via ldflags.
+var (
+	version = "dev"
+	commit  = "none"
+	date    = "unknown"
+)
+
 // rootCmd represents the base command when called without any subcommands
 
 var rootCmd = &cobra.Command{
-	Use:   "kubectl-why",
-	Short: "Explain why a Kubernetes resource is failing",
+	Use:     "kubectl-why",
+	Version: version,
+	Short:   "Explain why a Kubernetes resource is failing",
 	Long: `kubectl why diagnoses failing Kubernetes pods, 
 deployments, and jobs — without switching between 
 kubectl describe, kubectl logs, and kubectl get events.`,
@@ -39,6 +47,10 @@ func Execute() {
 //In Go, init() is a special function. It runs automatically before main().
 
 func init() {
+	// Set a rich version string shown by --version
+	rootCmd.SetVersionTemplate(
+		"kubectl-why {{.Version}} (commit: " + commit + ", built: " + date + ")\n",
+	)
 	// Hide the default completion command
 	rootCmd.CompletionOptions.DisableDefaultCmd = true
 	// Global persistent flags — available on all subcommands
