@@ -67,6 +67,10 @@ kubectl-why deploy <name> -n <namespace>    # alias
 
 # Diagnose a job
 kubectl-why job <name> -n <namespace>
+
+# Planned: explain a Kubernetes error or exit code
+# kubectl-why explain 137
+# kubectl-why explain OOMKilled
 ```
 
 **Flags:**
@@ -141,6 +145,32 @@ step-by-step guide.
 
 **Wanted:** rules for `PostStartHookError`, 
 `InvalidImageName`, node-level analysis.
+
+---
+
+## Roadmap
+
+Planned next steps are split into two layers: deepen
+workload debugging first, then expand into platform
+debugging.
+
+### V2
+
+- More pod and init-container failure patterns
+- Better job diagnosis (`BackoffLimitExceeded`, clearer evidence, stronger fixes)
+- Service diagnosis (`kubectl-why service`) for selector mismatch and no endpoints
+- `--all-namespaces` support
+- `kubectl-why explain <exit-code|reason>` for beginner-friendly error lookup
+
+### V3
+
+- Path tracing (`kubectl-why path`) across ingress, service, and pod
+- HPA and scaling diagnosis
+- NetworkPolicy debugging
+- Node-level diagnosis
+- Provider-specific identity checks such as IRSA / workload identity
+
+Roadmap items are directional, not fixed commitments.
 
 ---
 
