@@ -89,7 +89,7 @@ kubectl-why job <name> -n <namespace>
 
 | Failure | What you see | What kubectl-why tells you |
 |---|---|---|
-| OOMKilled | CrashLoopBackOff | Memory limit exceeded, usage bar, fix command |
+| OOMKilled | CrashLoopBackOff | Memory limit exceeded, restart count, fix command |
 | ImagePullBackOff | ImagePullBackOff | Bad tag or auth issue, exact image name |
 | ErrImagePull | ErrImagePull | First pull failure before backoff |
 | CreateContainerConfigError | Error | Missing ConfigMap or Secret name |
