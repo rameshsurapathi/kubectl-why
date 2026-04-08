@@ -116,9 +116,10 @@ the worst failing pod automatically.
     The kernel killed it to protect the node.
 
   ●  Evidence
-    Memory limit    512Mi
-    Usage at crash  511Mi  ████████████░  99%
+    Node           ip-10-0-12-34
+    Container      api
     Exit code       137
+    Reason          OOMKilled
     Restarts        8
 
   ●  Last logs
