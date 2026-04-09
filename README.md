@@ -1,56 +1,61 @@
 # kubectl-why
 
-**Explain why a Kubernetes pod, deployment, or job 
-is failing — without switching between 5 commands.**
+**Turn Kubernetes failures into plain-English diagnosis.**
+
+`kubectl-why` explains why a Pod, Deployment, or Job is failing by collecting the useful bits from status, events, and logs, then showing:
+
+- **Why** it failed
+- **Evidence** that supports the diagnosis
+- **Fix** commands you can run next
+
+It is built for:
+
+- Kubernetes beginners who do not yet know what `OOMKilled`, `CrashLoopBackOff`, or `ImagePullBackOff` really mean
+- Developers debugging workloads without jumping between multiple `kubectl` commands
+- SRE / DevOps engineers who want fast, readable failure summaries
 
 ![kubectl-why demo](demo.gif)
 
 ---
 
-## The problem
+## Why use it?
 
-It's 3am. PagerDuty woke you up.
-Your pod is in `CrashLoopBackOff`.
-
-You run:
+When a workload fails, Kubernetes usually gives you the answer, but it is spread across:
 
 ```bash
-kubectl describe pod api-123
-kubectl logs api-123 --previous
-kubectl get events --field-selector \
-  involvedObject.name=api-123
+kubectl describe pod <name>
+kubectl logs <name> --previous
+kubectl get events
 ```
 
-You get walls of text. You grep through them 
-half-asleep. The answer was buried in the events 
-section the whole time.
+That is fine once you know what to look for. It is much harder when you are still learning Kubernetes or when the failure is buried in noisy output.
 
-**There's a better way.**
+`kubectl-why` turns those raw signals into a short diagnosis you can understand quickly.
 
 ---
 
 ## Install
 
-> **Requires Go 1.25+** when building from source (driven by `k8s.io/client-go v0.35`).
-> Pre-built binaries have no Go dependency.
+> **Requires Go 1.25+** when building from source.
+> Pre-built binaries do not require Go.
 
 ```bash
 # Homebrew (macOS / Linux)
 brew tap rameshsurapathi/tap
 brew install kubectl-why
 
-# Go install  (requires Go 1.25+)
+# Go install
 go install github.com/rameshsurapathi/kubectl-why@latest
 
-# Download binary  (no Go needed)
-# → github.com/rameshsurapathi/kubectl-why/releases
+# Download release binaries
+# https://github.com/rameshsurapathi/kubectl-why/releases
 ```
 
 Works as a standalone CLI or as a kubectl plugin:
 
 ```bash
-kubectl-why pod api-123          # standalone
-kubectl why pod api-123          # as kubectl plugin
+kubectl-why pod api-123
+kubectl why pod api-123
 ```
 
 ---
@@ -58,24 +63,23 @@ kubectl why pod api-123          # as kubectl plugin
 ## Usage
 
 ```bash
-# Diagnose a pod
+# Pod diagnosis
 kubectl-why pod <name> -n <namespace>
 
-# Diagnose a deployment
+# Deployment diagnosis
 kubectl-why deployment <name> -n <namespace>
-kubectl-why deploy <name> -n <namespace>    # alias
+kubectl-why deploy <name> -n <namespace>
 
-# Diagnose a job
+# Job diagnosis
 kubectl-why job <name> -n <namespace>
 
-# Planned: explain a Kubernetes error or exit code
-# kubectl-why explain 137
-# kubectl-why explain OOMKilled
+# JSON output for automation
+kubectl-why pod <name> -o json
 ```
 
-**Flags:**
+**Flags**
 
-```
+```text
 -n, --namespace   Kubernetes namespace (default: default)
 --context         Kubernetes context
 --tail            Log lines to fetch (default: 20)
@@ -85,74 +89,87 @@ kubectl-why job <name> -n <namespace>
 
 ---
 
-## What it detects
+## What it explains today
 
-| Failure | What you see | What kubectl-why tells you |
-|---|---|---|
-| OOMKilled | CrashLoopBackOff | Memory limit exceeded, restart count, fix command |
-| ImagePullBackOff | ImagePullBackOff | Bad tag or auth issue, exact image name |
-| ErrImagePull | ErrImagePull | First pull failure before backoff |
-| CreateContainerConfigError | Error | Missing ConfigMap or Secret name |
-| CrashLoopBackOff | CrashLoopBackOff | Exit code, last logs, restart count |
-| Pending | Pending | Insufficient CPU/memory, node details |
-| ContainerCannotRun | Error | Bad entrypoint or missing binary |
-| Evicted | Failed | Node resource pressure, exact eviction message, node name |
-| Exit Code 139 (Segfault) | CrashLoopBackOff | Segmentation fault detected, restart count |
-| Exit Code 1 (App Crash) | CrashLoopBackOff | Smart log scan for exceptions/panics, extracted error lines |
-| Healthy | Running | Pod health summary |
+`kubectl-why` currently detects:
 
-Deployment and job support built in — analyzes
-the worst failing pod automatically.
+- `OOMKilled`
+- `ImagePullBackOff` / `ErrImagePull`
+- `CreateContainerConfigError`
+- `CrashLoopBackOff`
+- `Pending` scheduling failures
+- `ContainerCannotRun`
+- `Evicted`
+- generic app crashes (`Exit Code 1`)
+- segmentation faults (`Exit Code 139`)
+- healthy workloads
+
+Deployment and Job support are included. The tool analyzes the most relevant failing pod automatically.
 
 ---
 
-## Example output
+## Example diagnoses
 
-**OOMKilled pod:**
+**OOMKilled**
 
+```text
+Status        OOMKilled
+
+Why
+  Container exceeded its memory limit.
+  The kernel killed it to protect the node.
+
+Evidence
+  Container      api
+  Exit code      137
+  Reason         OOMKilled
+  Restarts       8
 ```
-╭─ pod/api-123 · production ──────────────────╮
 
-  Status        OOMKilled
+**ImagePullBackOff**
 
-  ●  Why
-    Container exceeded its memory limit.
-    The kernel killed it to protect the node.
+```text
+Status        ImagePullBackOff
 
-  ●  Evidence
-    Node           ip-10-0-12-34
-    Container      api
-    Exit code       137
-    Reason          OOMKilled
-    Restarts        8
+Why
+  Kubernetes cannot pull the image.
+  This is usually a wrong tag, deleted image, or auth failure.
 
-  ●  Last logs
-    java.lang.OutOfMemoryError: Java heap space
+Evidence
+  Image         ghcr.io/example/api:doesntexist
+  Error         pull access denied
+```
 
-  ●  Fix
-    # Increase memory limit
-    kubectl set resources deployment/api \
-      --limits=memory=1Gi -n production
+**Pending**
+
+```text
+Status        Pending — cannot be scheduled
+
+Why
+  The scheduler cannot find a node that meets
+  the pod's resource requests or constraints.
+
+Evidence
+  Scheduler Msg  0/3 nodes are available: 3 Insufficient memory
 ```
 
 ---
 
-## Contributing
+## How it works
 
-Adding a new failure pattern is ~20 lines of Go.
-See [CONTRIBUTING.md](CONTRIBUTING.md) for a 
-step-by-step guide.
+The tool follows a simple flow:
 
-**Wanted:** rules for `PostStartHookError`, 
-`InvalidImageName`, node-level analysis.
+1. **Collect** relevant Kubernetes signals from the API
+2. **Analyze** the failure using focused rules
+3. **Render** a short explanation with evidence and next steps
+
+That makes it useful both as a fast debugging tool and as a way to learn what common Kubernetes failures actually mean.
 
 ---
 
 ## Roadmap
 
-Planned next steps are split into two layers: deepen
-workload debugging first, then expand into platform
-debugging.
+Planned next steps are split into two layers: deepen workload debugging first, then expand into platform debugging.
 
 ### V2
 
@@ -174,15 +191,15 @@ Roadmap items are directional, not fixed commitments.
 
 ---
 
-## Why this exists
+## Contributing
 
-I got tired of running the same 4 kubectl commands 
-every time a pod failed in production.
-The information was always there — it just took 
-too long to find.
+Adding a new failure pattern is intentionally small and approachable. See [CONTRIBUTING.md](CONTRIBUTING.md) for fixtures, rule registration, tests, and development workflow.
 
-kubectl-why collects it all in one command 
-and tells you what it means.
+Good next additions include:
+
+- `PostStartHookError`
+- `InvalidImageName`
+- init-container failure improvements
 
 ---
 
