@@ -101,9 +101,15 @@ var (
 			MarginLeft(4)
 )
 
+// Options configures the render output.
+type Options struct {
+	Explain       bool
+	ShowSecondary bool
+}
+
 // ── Main renderer ─────────────────────────────────────────
 
-func Text(result analyzer.AnalysisResult) error {
+func Text(result analyzer.AnalysisResult, opts Options) error {
 	fmt.Println()
 
 	// ── Header ───────────────────────────────────────
@@ -159,6 +165,36 @@ func Text(result analyzer.AnalysisResult) error {
 			sectionDot.Render("●"))
 		for _, check := range result.NextChecks {
 			fmt.Println(nextCheckStyle.Render("→  " + check))
+		}
+		fmt.Println()
+	}
+
+	// ── Secondary Findings ───────────────────────────
+	if opts.ShowSecondary && len(result.Findings) > 1 {
+		fmt.Printf("  %s Secondary Findings\n",
+			sectionDot.Render("●"))
+		for i := 1; i < len(result.Findings); i++ {
+			f := result.Findings[i]
+			fmt.Printf("    %s (%s)\n", f.Message, f.ReasonCode)
+			if opts.Explain {
+				fmt.Printf("      Confidence: %s\n", f.Confidence)
+			}
+			for _, e := range f.Evidence {
+				fmt.Printf("      %s: %s\n", e.Label, e.Value)
+			}
+		}
+		fmt.Println()
+	}
+
+	// ── Explain ──────────────────────────────────────
+	if opts.Explain && len(result.Findings) > 0 {
+		fmt.Printf("  %s Explain\n",
+			sectionDot.Render("●"))
+		f := result.Findings[0]
+		fmt.Printf("    Primary Diagnosis: %s\n", f.ReasonCode)
+		fmt.Printf("    Confidence: %s\n", f.Confidence)
+		if f.AffectedObject != "" {
+			fmt.Printf("    Affected Object: %s\n", f.AffectedObject)
 		}
 		fmt.Println()
 	}

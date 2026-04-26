@@ -65,6 +65,9 @@ func runPod(cmd *cobra.Command, args []string) error {
 	case "json":
 		return render.JSON(result)
 	default:
-		return render.Text(result)
+		return render.Text(result, render.Options{
+			Explain:       explainFlag,
+			ShowSecondary: showSecondaryFlag,
+		})
 	}
 }

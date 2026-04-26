@@ -1,6 +1,8 @@
 package analyzer
 
 import (
+	"strings"
+
 	"github.com/rameshsurapathi/kubectl-why/pkg/kube"
 )
 
@@ -39,7 +41,7 @@ func (r *PendingRule) Analyze(signals *kube.PodSignals) AnalysisResult {
 		}
 	}
 
-	return AnalysisResult{
+	res := AnalysisResult{
 		Resource:      "pod/" + signals.PodName,
 		Namespace:     signals.Namespace,
 		Status:        "Pending — cannot be scheduled",
@@ -60,4 +62,39 @@ func (r *PendingRule) Analyze(signals *kube.PodSignals) AnalysisResult {
 		},
 		RecentEvents: extractEventStrings(signals.Events, 3),
 	}
+
+	reasonCode := "SCHEDULING_FAILED"
+	if msg != "" {
+		if strings.Contains(msg, "Insufficient cpu") {
+			reasonCode = "INSUFFICIENT_CPU"
+		} else if strings.Contains(msg, "Insufficient memory") {
+			reasonCode = "INSUFFICIENT_MEMORY"
+		} else if strings.Contains(msg, "node(s) didn't match Pod's node affinity/selector") || strings.Contains(msg, "node selector") {
+			reasonCode = "NODE_SELECTOR_MISMATCH"
+		} else if strings.Contains(msg, "node(s) didn't match pod affinity/anti-affinity") || strings.Contains(msg, "pod anti-affinity") {
+			reasonCode = "POD_ANTI_AFFINITY_CONFLICT"
+		} else if strings.Contains(msg, "node(s) had untolerated taint") {
+			reasonCode = "UNtolerated_TAINT"
+		} else if strings.Contains(msg, "topology spread constraints") {
+			reasonCode = "TOPOLOGY_SPREAD_CONSTRAINT"
+		} else if strings.Contains(msg, "0/0 nodes are available") {
+			reasonCode = "NO_NODES_AVAILABLE"
+		} else if strings.Contains(msg, "node(s) were unschedulable") {
+			reasonCode = "NODES_UNSCHEDULABLE"
+		}
+	}
+
+	res.Findings = []Finding{
+		{
+			Category:       "Scheduling",
+			ReasonCode:     reasonCode,
+			Confidence:     "high",
+			AffectedObject: res.Resource,
+			Message:        msg,
+			Evidence:       res.Evidence,
+			FixCommands:    res.FixCommands,
+			NextChecks:     res.NextChecks,
+		},
+	}
+	return res
 }

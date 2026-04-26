@@ -50,7 +50,7 @@ func (r *ImagePullRule) Analyze(signals *kube.PodSignals) AnalysisResult {
 		runbookHint = "" 
 	}
 
-	return AnalysisResult{
+	res := AnalysisResult{
 		Resource:      "pod/" + signals.PodName,
 		Namespace:     signals.Namespace,
 		Status:        status,
@@ -81,6 +81,26 @@ func (r *ImagePullRule) Analyze(signals *kube.PodSignals) AnalysisResult {
 		RecentEvents: extractEventStrings(signals.Events, 3),
 		RunbookHint:  runbookHint,
 	}
+
+	findingReasonCode := "IMAGE_PULL_FAILED"
+	errMsg := getImagePullMessage(signals)
+	if strings.Contains(strings.ToLower(errMsg), "unauthorized") || strings.Contains(strings.ToLower(errMsg), "authentication") || strings.Contains(strings.ToLower(errMsg), "pull access denied") {
+		findingReasonCode = "IMAGE_PULL_AUTH_FAILED"
+	}
+
+	res.Findings = []Finding{
+		{
+			Category:       "Pod",
+			ReasonCode:     findingReasonCode,
+			Confidence:     "high",
+			AffectedObject: res.Resource,
+			Message:        errMsg,
+			Evidence:       res.Evidence,
+			FixCommands:    res.FixCommands,
+			NextChecks:     res.NextChecks,
+		},
+	}
+	return res
 }
 
 func getImageName(signals *kube.PodSignals) string {

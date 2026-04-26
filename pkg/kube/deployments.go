@@ -39,6 +39,10 @@ type DeploymentSignals struct {
 
 	// true if all pods are healthy
 	AllHealthy bool
+
+	// Rollout conditions
+	Conditions []appsv1.DeploymentCondition
+	Events     []EventSignal
 }
 
 // CollectDeploymentSignals fetches deployment status
@@ -69,6 +73,26 @@ func CollectDeploymentSignals(
 		ReadyReplicas:     deployment.Status.ReadyReplicas,
 		AvailableReplicas: deployment.Status.AvailableReplicas,
 		UpdatedReplicas:   deployment.Status.UpdatedReplicas,
+		Conditions:        deployment.Status.Conditions,
+	}
+
+	events, _ := client.CoreV1().Events(namespace).List(ctx, metav1.ListOptions{
+		FieldSelector: "involvedObject.kind=Deployment,involvedObject.name=" + name,
+	})
+	for _, e := range events.Items {
+		signals.Events = append(signals.Events, EventSignal{
+			Type:      e.Type,
+			Reason:    e.Reason,
+			Message:   e.Message,
+			Count:     e.Count,
+			FirstTime: e.FirstTimestamp.Time,
+			LastTime:  e.LastTimestamp.Time,
+			Component: e.Source.Component,
+		})
+	}
+	sortEvents(signals.Events)
+	if maxEvents > 0 && len(signals.Events) > maxEvents {
+		signals.Events = signals.Events[:maxEvents]
 	}
 
 	// ── 2. Find pods belonging to this deployment ────
