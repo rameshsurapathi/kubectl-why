@@ -159,9 +159,15 @@ func findMostRecentFailedPod(
 			isFailed = true
 		} else {
 			// Also check for containers in error state
-			for _, cs := range pod.Status.ContainerStatuses {
-				if cs.State.Terminated != nil &&
-					cs.State.Terminated.ExitCode != 0 {
+			for _, cs := range append(pod.Status.InitContainerStatuses, pod.Status.ContainerStatuses...) {
+				if cs.State.Terminated != nil && cs.State.Terminated.ExitCode != 0 {
+					isFailed = true
+					break
+				}
+				if cs.State.Waiting != nil &&
+					cs.State.Waiting.Reason != "" &&
+					cs.State.Waiting.Reason != "ContainerCreating" &&
+					cs.State.Waiting.Reason != "PodInitializing" {
 					isFailed = true
 					break
 				}

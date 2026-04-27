@@ -83,8 +83,8 @@ var (
 
 	// Log lines
 	logLine = lipgloss.NewStyle().
-			Foreground(colorGray).
-			MarginLeft(4)
+		Foreground(colorGray).
+		MarginLeft(4)
 
 	// Divider
 	dividerStyle = lipgloss.NewStyle().
@@ -202,13 +202,13 @@ func Text(result analyzer.AnalysisResult, opts Options) error {
 	// ── Runbook hint ─────────────────────────────────
 	// (Hidden for now until the separate Runbook tool is built)
 	/*
-	if result.RunbookHint != "" {
-		fmt.Println(dividerStyle.Render(
-			strings.Repeat("─", 65)))
-		fmt.Println(runbookHint.Render(
-			"→  " + result.RunbookHint))
-		fmt.Println()
-	}
+		if result.RunbookHint != "" {
+			fmt.Println(dividerStyle.Render(
+				strings.Repeat("─", 65)))
+			fmt.Println(runbookHint.Render(
+				"→  " + result.RunbookHint))
+			fmt.Println()
+		}
 	*/
 
 	return nil
@@ -232,6 +232,28 @@ func printStatusLine(result analyzer.AnalysisResult) {
 	}
 
 	fmt.Printf("%s  %s\n", label, status)
+	printConfidenceLine(result)
+}
+
+func printConfidenceLine(result analyzer.AnalysisResult) {
+	if result.Severity == "healthy" || len(result.Findings) == 0 {
+		return
+	}
+
+	finding := result.Findings[0]
+	if finding.Confidence == "" {
+		return
+	}
+
+	value := finding.Confidence
+	if finding.ReasonCode != "" {
+		value = fmt.Sprintf("%s (%s)", value, finding.ReasonCode)
+	}
+
+	fmt.Printf("%s  %s\n",
+		labelStyle.Render("  Confidence"),
+		evidenceValue.Render(value),
+	)
 }
 
 func printReason(result analyzer.AnalysisResult) {

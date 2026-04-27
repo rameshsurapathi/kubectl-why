@@ -6,7 +6,7 @@ import (
 	"github.com/rameshsurapathi/kubectl-why/pkg/kube"
 )
 
-// AnalyzePod acts as the "brain" for Pod resources. 
+// AnalyzePod acts as the "brain" for Pod resources.
 // It takes the raw data gathered from the cluster (the PodSignals)
 // and runs it through a gauntlet of heuristic rules to figure out exactly what went wrong.
 func AnalyzePod(signals *kube.PodSignals) AnalysisResult {
@@ -23,6 +23,7 @@ func AnalyzePod(signals *kube.PodSignals) AnalysisResult {
 		// Use the first matched result as the primary basis
 		primary := matchedResults[0]
 		primary.SchemaVersion = "v2"
+		primary.Findings = nil
 
 		// Convert all matched results to findings
 		for _, res := range matchedResults {
