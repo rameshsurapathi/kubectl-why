@@ -36,9 +36,16 @@ func AnalyzeService(signals *kube.ServiceSignals) AnalysisResult {
 	status := "Degraded"
 
 	if len(signals.Selector) == 0 {
-		reasonCode = "NO_SELECTOR"
-		msg = "Service has no selector. It requires manual Endpoint creation."
-		severity = "warning"
+		if endpointCount(signals) > 0 {
+			reasonCode = "MANUAL_ENDPOINTS"
+			msg = fmt.Sprintf("Service has no selector but has %d manually managed endpoints.", endpointCount(signals))
+			severity = "healthy"
+			status = "Healthy"
+		} else {
+			reasonCode = "NO_SELECTOR"
+			msg = "Service has no selector and no EndpointSlices. It requires manual endpoint creation."
+			severity = "warning"
+		}
 	} else if len(signals.MatchingPods) == 0 {
 		reasonCode = "NO_MATCHING_PODS"
 		msg = "Service selector matches no pods in this namespace."
@@ -113,4 +120,12 @@ func AnalyzeService(signals *kube.ServiceSignals) AnalysisResult {
 	}
 
 	return res
+}
+
+func endpointCount(signals *kube.ServiceSignals) int {
+	total := 0
+	for _, slice := range signals.EndpointSlices {
+		total += len(slice.Endpoints)
+	}
+	return total
 }

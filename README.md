@@ -81,8 +81,13 @@ kubectl-why pvc <name> -n <namespace>
 # Node diagnosis
 kubectl-why node <name>
 
+# Namespace scan
+kubectl-why scan -n <namespace>
+kubectl-why scan -n <namespace> --show-healthy
+
 # JSON output for automation
 kubectl-why pod <name> -o json
+kubectl-why scan -n <namespace> -o json
 ```
 
 **Flags**
@@ -95,6 +100,7 @@ kubectl-why pod <name> -o json
 -o, --output         Output format: text|json
 --explain            Show AI/rule confidence and deep reasoning behind the diagnosis
 --show-secondary     Show secondary warnings/findings (e.g. out of memory + failed mount)
+--show-healthy       Include healthy resources in namespace scan output
 ```
 
 ---
@@ -123,6 +129,12 @@ kubectl-why pod <name> -o json
 - Node pressure and readiness issues
 
 Deployment, Job, CronJob, Service, PVC, and Node support are included. The tool analyzes the most relevant failing components automatically.
+
+**Namespace scan:**
+- `kubectl-why scan -n <namespace>` checks common namespaced resources together
+- Ranks critical issues before warnings
+- Hides healthy resources by default, with `--show-healthy` for full inventory
+- Emits a v3 JSON envelope with ranked resource diagnoses for automation
 
 ---
 
@@ -169,6 +181,32 @@ Why
 
 Evidence
   Scheduler Msg  0/3 nodes are available: 3 Insufficient memory
+```
+
+**Service Routing Failure**
+
+```text
+Status        Degraded
+
+Why
+  Service matches 3 pods, but none are ready.
+
+Evidence
+  Type           ClusterIP
+  Selector       map[app:backend]
+```
+
+**PVC Pending**
+
+```text
+Status        Pending
+
+Why
+  The PVC will not bind until a Pod is created that uses it (WaitForFirstConsumer binding mode).
+
+Evidence
+  StorageClass   standard-rwo
+  Message        waiting for first consumer to be created before binding
 ```
 
 ---
