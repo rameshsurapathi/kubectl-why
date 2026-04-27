@@ -26,8 +26,12 @@ func init() {
 		&ImagePullRule{},
 		&ConfigErrorRule{},
 		&CannotRunRule{},
+		&InitContainerRule{},
+		&ProbesRule{},
+		&VolumeRule{},
 		&SegfaultRule{},
 		&AppCrashRule{},
+		&NonZeroExitRule{},
 		&CrashLoopRule{},
 		&PendingRule{},
 	}

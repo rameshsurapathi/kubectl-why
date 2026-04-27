@@ -66,12 +66,20 @@ kubectl why pod api-123
 # Pod diagnosis
 kubectl-why pod <name> -n <namespace>
 
-# Deployment diagnosis
+# Deployment & Rollout diagnosis
 kubectl-why deployment <name> -n <namespace>
-kubectl-why deploy <name> -n <namespace>
+kubectl-why rollout deployment <name> -n <namespace>
 
-# Job diagnosis
+# Job & CronJob diagnosis
 kubectl-why job <name> -n <namespace>
+kubectl-why cronjob <name> -n <namespace>
+
+# Service & Storage diagnosis
+kubectl-why service <name> -n <namespace>
+kubectl-why pvc <name> -n <namespace>
+
+# Node diagnosis
+kubectl-why node <name>
 
 # JSON output for automation
 kubectl-why pod <name> -o json
@@ -80,11 +88,13 @@ kubectl-why pod <name> -o json
 **Flags**
 
 ```text
--n, --namespace   Kubernetes namespace (default: default)
---context         Kubernetes context
---tail            Log lines to fetch (default: 20)
---events          Max Kubernetes events to show (default: 5)
--o, --output      Output format: text|json
+-n, --namespace      Kubernetes namespace (default: default)
+--context            Kubernetes context
+--tail               Log lines to fetch (default: 20)
+--events             Max Kubernetes events to show (default: 5)
+-o, --output         Output format: text|json
+--explain            Show AI/rule confidence and deep reasoning behind the diagnosis
+--show-secondary     Show secondary warnings/findings (e.g. out of memory + failed mount)
 ```
 
 ---
@@ -93,18 +103,26 @@ kubectl-why pod <name> -o json
 
 `kubectl-why` currently detects:
 
-- `OOMKilled`
-- `ImagePullBackOff` / `ErrImagePull`
-- `CreateContainerConfigError`
+**Pod lifecycle:**
+- `OOMKilled` and App crashes (`Exit Code X`)
+- `ImagePullBackOff` / `ErrImagePull` (including auth failures)
+- `CreateContainerConfigError` (Missing ConfigMaps/Secrets/ServiceAccounts)
 - `CrashLoopBackOff`
-- `Pending` scheduling failures
-- `ContainerCannotRun`
+- `Pending` (Scheduling failures: CPU/Memory, Taints, Affinities)
+- `ContainerCannotRun` / `RunContainerError`
 - `Evicted`
-- generic app crashes (`Exit Code 1`)
-- segmentation faults (`Exit Code 139`)
-- healthy workloads
+- Failing Readiness/Liveness/Startup Probes
+- Init Container failures
+- Volume Mount and Attach failures
 
-Deployment and Job support are included. The tool analyzes the most relevant failing pod automatically.
+**Workloads & Platform:**
+- Stuck Deployment rollouts (`ProgressDeadlineExceeded`, Unavailable replicas)
+- Failed or suspended CronJobs
+- PVC provisioning and binding issues
+- Service misconfigurations (no matching pods, endpoints failing)
+- Node pressure and readiness issues
+
+Deployment, Job, CronJob, Service, PVC, and Node support are included. The tool analyzes the most relevant failing components automatically.
 
 ---
 
@@ -168,24 +186,12 @@ That makes it useful both as a fast debugging tool and as a way to learn what co
 ---
 
 ## Roadmap
-
-Planned next steps are split into two layers: deepen workload debugging first, then expand into platform debugging.
-
-### V2
-
-- More pod and init-container failure patterns
-- Better job diagnosis (`BackoffLimitExceeded`, clearer evidence, stronger fixes)
-- Service diagnosis (`kubectl-why service`) for selector mismatch and no endpoints
-- `--all-namespaces` support
-- `kubectl-why explain <exit-code|reason>` for beginner-friendly error lookup
-
-### V3
+Planned next steps include expanding into deeper platform debugging.
 
 - Path tracing (`kubectl-why path`) across ingress, service, and pod
 - HPA and scaling diagnosis
 - NetworkPolicy debugging
-- Node-level diagnosis
-- Provider-specific identity checks such as IRSA / workload identity
+- Advanced provider-specific identity checks such as IRSA / workload identity
 
 Roadmap items are directional, not fixed commitments.
 

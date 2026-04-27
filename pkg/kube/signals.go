@@ -90,3 +90,15 @@ type EventSignal struct {
     LastTime  time.Time
     Component string // kubelet, scheduler, etc.
 }
+
+// PVCSignals holds signals for a PersistentVolumeClaim
+type PVCSignals struct {
+	Name             string
+	Namespace        string
+	Phase            string // Pending, Bound, Lost
+	StorageClassName string
+	VolumeName       string
+	Capacity         string
+	Conditions       []ConditionSignal
+	Events           []EventSignal
+}

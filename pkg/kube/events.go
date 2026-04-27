@@ -55,3 +55,14 @@ func CollectEvents(
 
     return signals, nil
 }
+
+func sortEvents(events []EventSignal) {
+	sort.Slice(events, func(i, j int) bool {
+		// Warnings bubble to top
+		if events[i].Type != events[j].Type {
+			return events[i].Type == "Warning"
+		}
+		// Then most recent
+		return events[i].LastTime.After(events[j].LastTime)
+	})
+}

@@ -83,8 +83,8 @@ var (
 
 	// Log lines
 	logLine = lipgloss.NewStyle().
-			Foreground(colorGray).
-			MarginLeft(4)
+		Foreground(colorGray).
+		MarginLeft(4)
 
 	// Divider
 	dividerStyle = lipgloss.NewStyle().
@@ -101,9 +101,15 @@ var (
 			MarginLeft(4)
 )
 
+// Options configures the render output.
+type Options struct {
+	Explain       bool
+	ShowSecondary bool
+}
+
 // ── Main renderer ─────────────────────────────────────────
 
-func Text(result analyzer.AnalysisResult) error {
+func Text(result analyzer.AnalysisResult, opts Options) error {
 	fmt.Println()
 
 	// ── Header ───────────────────────────────────────
@@ -163,16 +169,46 @@ func Text(result analyzer.AnalysisResult) error {
 		fmt.Println()
 	}
 
+	// ── Secondary Findings ───────────────────────────
+	if opts.ShowSecondary && len(result.Findings) > 1 {
+		fmt.Printf("  %s Secondary Findings\n",
+			sectionDot.Render("●"))
+		for i := 1; i < len(result.Findings); i++ {
+			f := result.Findings[i]
+			fmt.Printf("    %s (%s)\n", f.Message, f.ReasonCode)
+			if opts.Explain {
+				fmt.Printf("      Confidence: %s\n", f.Confidence)
+			}
+			for _, e := range f.Evidence {
+				fmt.Printf("      %s: %s\n", e.Label, e.Value)
+			}
+		}
+		fmt.Println()
+	}
+
+	// ── Explain ──────────────────────────────────────
+	if opts.Explain && len(result.Findings) > 0 {
+		fmt.Printf("  %s Explain\n",
+			sectionDot.Render("●"))
+		f := result.Findings[0]
+		fmt.Printf("    Primary Diagnosis: %s\n", f.ReasonCode)
+		fmt.Printf("    Confidence: %s\n", f.Confidence)
+		if f.AffectedObject != "" {
+			fmt.Printf("    Affected Object: %s\n", f.AffectedObject)
+		}
+		fmt.Println()
+	}
+
 	// ── Runbook hint ─────────────────────────────────
 	// (Hidden for now until the separate Runbook tool is built)
 	/*
-	if result.RunbookHint != "" {
-		fmt.Println(dividerStyle.Render(
-			strings.Repeat("─", 65)))
-		fmt.Println(runbookHint.Render(
-			"→  " + result.RunbookHint))
-		fmt.Println()
-	}
+		if result.RunbookHint != "" {
+			fmt.Println(dividerStyle.Render(
+				strings.Repeat("─", 65)))
+			fmt.Println(runbookHint.Render(
+				"→  " + result.RunbookHint))
+			fmt.Println()
+		}
 	*/
 
 	return nil
@@ -196,6 +232,28 @@ func printStatusLine(result analyzer.AnalysisResult) {
 	}
 
 	fmt.Printf("%s  %s\n", label, status)
+	printConfidenceLine(result)
+}
+
+func printConfidenceLine(result analyzer.AnalysisResult) {
+	if result.Severity == "healthy" || len(result.Findings) == 0 {
+		return
+	}
+
+	finding := result.Findings[0]
+	if finding.Confidence == "" {
+		return
+	}
+
+	value := finding.Confidence
+	if finding.ReasonCode != "" {
+		value = fmt.Sprintf("%s (%s)", value, finding.ReasonCode)
+	}
+
+	fmt.Printf("%s  %s\n",
+		labelStyle.Render("  Confidence"),
+		evidenceValue.Render(value),
+	)
 }
 
 func printReason(result analyzer.AnalysisResult) {

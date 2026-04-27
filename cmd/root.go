@@ -64,5 +64,13 @@ func init() {
 		"events", 5, "Max events to show")
 	rootCmd.PersistentFlags().Int64Var(&tailLines,
 		"tail", 20, "Number of log lines to fetch")
-
+	rootCmd.PersistentFlags().BoolVar(&explainFlag,
+		"explain", false, "Explain the logic behind the diagnosis")
+	rootCmd.PersistentFlags().BoolVar(&showSecondaryFlag,
+		"show-secondary", false, "Show secondary findings in text output")
 }
+
+var (
+	explainFlag       bool
+	showSecondaryFlag bool
+)

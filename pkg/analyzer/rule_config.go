@@ -2,6 +2,8 @@ package analyzer
 
 import (
 	"fmt"
+	"strings"
+
 	"github.com/rameshsurapathi/kubectl-why/pkg/kube"
 )
 
@@ -17,7 +19,7 @@ func (r *ConfigErrorRule) Name() string { return "CreateContainerConfigError" }
 // Match checks if any container inside the pod has a waiting reason of CreateContainerConfigError.
 func (r *ConfigErrorRule) Match(signals *kube.PodSignals) bool {
 	for _, c := range append(signals.Containers, signals.InitContainers...) {
-		if c.State.IsWaiting && c.State.WaitingReason == "CreateContainerConfigError" {
+		if c.State.IsWaiting && (c.State.WaitingReason == "CreateContainerConfigError" || c.State.WaitingReason == "CreateContainerError") {
 			return true
 		}
 	}
@@ -29,14 +31,14 @@ func (r *ConfigErrorRule) Match(signals *kube.PodSignals) bool {
 func (r *ConfigErrorRule) Analyze(signals *kube.PodSignals) AnalysisResult {
 	var reason, message string
 	for _, c := range append(signals.Containers, signals.InitContainers...) {
-		if c.State.IsWaiting && c.State.WaitingReason == "CreateContainerConfigError" {
+		if c.State.IsWaiting && (c.State.WaitingReason == "CreateContainerConfigError" || c.State.WaitingReason == "CreateContainerError") {
 			reason = c.State.WaitingReason
 			message = c.State.WaitingMessage
 			break
 		}
 	}
 
-	return AnalysisResult{
+	res := AnalysisResult{
 		Resource:      "pod/" + signals.PodName,
 		Namespace:     signals.Namespace,
 		Status:        "CreateContainerConfigError",
@@ -66,6 +68,29 @@ func (r *ConfigErrorRule) Analyze(signals *kube.PodSignals) AnalysisResult {
 		RecentEvents: extractEventStrings(signals.Events, 2),
 		RunbookHint:  "kubernetes/config-error",
 	}
+
+	findingReasonCode := "CONFIGMAP_NOT_FOUND"
+	if strings.Contains(message, "secret") || strings.Contains(message, "Secret") {
+		findingReasonCode = "SECRET_NOT_FOUND"
+	} else if strings.Contains(message, "serviceaccount") {
+		findingReasonCode = "SERVICE_ACCOUNT_NOT_FOUND"
+	} else if reason == "CreateContainerError" {
+		findingReasonCode = "CREATE_CONTAINER_ERROR"
+	}
+
+	res.Findings = []Finding{
+		{
+			Category:       "Pod",
+			ReasonCode:     findingReasonCode,
+			Confidence:     "high",
+			AffectedObject: res.Resource,
+			Message:        message,
+			Evidence:       res.Evidence,
+			FixCommands:    res.FixCommands,
+			NextChecks:     res.NextChecks,
+		},
+	}
+	return res
 }
 
 // CannotRunRule triggers when a container's entrypoint or command is impossible
@@ -78,7 +103,7 @@ func (r *CannotRunRule) Name() string { return "ContainerCannotRun" }
 // Match checks all containers for the "ContainerCannotRun" waiting state.
 func (r *CannotRunRule) Match(signals *kube.PodSignals) bool {
 	for _, c := range append(signals.Containers, signals.InitContainers...) {
-		if c.State.IsWaiting && c.State.WaitingReason == "ContainerCannotRun" {
+		if c.State.IsWaiting && (c.State.WaitingReason == "ContainerCannotRun" || c.State.WaitingReason == "RunContainerError") {
 			return true
 		}
 	}
@@ -88,14 +113,14 @@ func (r *CannotRunRule) Match(signals *kube.PodSignals) bool {
 func (r *CannotRunRule) Analyze(signals *kube.PodSignals) AnalysisResult {
 	var reason, message string
 	for _, c := range append(signals.Containers, signals.InitContainers...) {
-		if c.State.IsWaiting && c.State.WaitingReason == "ContainerCannotRun" {
+		if c.State.IsWaiting && (c.State.WaitingReason == "ContainerCannotRun" || c.State.WaitingReason == "RunContainerError") {
 			reason = c.State.WaitingReason
 			message = c.State.WaitingMessage
 			break
 		}
 	}
 
-	return AnalysisResult{
+	res := AnalysisResult{
 		Resource:      "pod/" + signals.PodName,
 		Namespace:     signals.Namespace,
 		Status:        "ContainerCannotRun",
@@ -114,4 +139,21 @@ func (r *CannotRunRule) Analyze(signals *kube.PodSignals) AnalysisResult {
 		},
 		RecentEvents: extractEventStrings(signals.Events, 2),
 	}
+	
+	reasonCode := "CONTAINER_CANNOT_RUN"
+	if reason == "RunContainerError" {
+		reasonCode = "RUN_CONTAINER_ERROR"
+	}
+	res.Findings = []Finding{
+		{
+			Category:       "Pod",
+			ReasonCode:     reasonCode,
+			Confidence:     "high",
+			AffectedObject: res.Resource,
+			Message:        message,
+			Evidence:       res.Evidence,
+			NextChecks:     res.NextChecks,
+		},
+	}
+	return res
 }

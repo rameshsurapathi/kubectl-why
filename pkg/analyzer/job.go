@@ -13,7 +13,8 @@ func AnalyzeJob(signals *kube.JobSignals) AnalysisResult {
 
 	// ── Job completed successfully ───────────────────
 	if signals.IsComplete {
-		return AnalysisResult{
+		res := AnalysisResult{
+			SchemaVersion: "v2",
 			Resource:      resource,
 			Namespace:     signals.Namespace,
 			Status:        "Completed",
@@ -35,11 +36,14 @@ func AnalyzeJob(signals *kube.JobSignals) AnalysisResult {
 				},
 			},
 		}
+		res.Findings = append(res.Findings, resultToFinding(res))
+		return res
 	}
 
 	// ── Job failed ───────────────────────────────────
 	if signals.IsFailed {
 		result := AnalysisResult{
+			SchemaVersion: "v2",
 			Resource:      resource,
 			Namespace:     signals.Namespace,
 			Status:        "Failed",
@@ -119,6 +123,13 @@ func AnalyzeJob(signals *kube.JobSignals) AnalysisResult {
 					podResult.Summary...,
 				)
 			}
+
+			// Append pod findings
+			result.Findings = append(result.Findings, podResult.Findings...)
+		}
+
+		if len(result.Findings) == 0 {
+			result.Findings = append(result.Findings, resultToFinding(result))
 		}
 
 		return result
@@ -126,7 +137,8 @@ func AnalyzeJob(signals *kube.JobSignals) AnalysisResult {
 
 	// ── Job still running ────────────────────────────
 	if signals.Active > 0 {
-		return AnalysisResult{
+		res := AnalysisResult{
+			SchemaVersion: "v2",
 			Resource:      resource,
 			Namespace:     signals.Namespace,
 			Status:        "Running",
@@ -153,10 +165,13 @@ func AnalyzeJob(signals *kube.JobSignals) AnalysisResult {
 				},
 			},
 		}
+		res.Findings = append(res.Findings, resultToFinding(res))
+		return res
 	}
 
 	// ── Unknown state ────────────────────────────────
-	return AnalysisResult{
+	res := AnalysisResult{
+		SchemaVersion: "v2",
 		Resource:      resource,
 		Namespace:     signals.Namespace,
 		Status:        "Unknown",
@@ -171,4 +186,6 @@ func AnalyzeJob(signals *kube.JobSignals) AnalysisResult {
 				signals.JobName, signals.Namespace),
 		},
 	}
+	res.Findings = append(res.Findings, resultToFinding(res))
+	return res
 }

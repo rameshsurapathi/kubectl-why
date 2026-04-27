@@ -6,28 +6,39 @@ import (
 	"github.com/rameshsurapathi/kubectl-why/pkg/kube"
 )
 
-// AnalyzePod acts as the "brain" for Pod resources. 
+// AnalyzePod acts as the "brain" for Pod resources.
 // It takes the raw data gathered from the cluster (the PodSignals)
 // and runs it through a gauntlet of heuristic rules to figure out exactly what went wrong.
 func AnalyzePod(signals *kube.PodSignals) AnalysisResult {
-	
-	// 1. Evaluate against known failure patterns (The 'Gauntlet')
-	// We iterate through every registered rule (e.g. OOMKilledRule, ImagePullBackOffRule).
-	// Because rules are in the 'registry' in priority order, the most critical or 
-	// specific rules are evaluated first.
+	var matchedResults []AnalysisResult
+
+	// 1. Evaluate against known failure patterns
 	for _, rule := range registry {
-		
-		// If the rule's specific condition matches the pod's data (e.g., ExitCode == 137)...
 		if rule.Match(signals) {
-			// Ask the rule to generate the final human-readable diagnosis report.
-			return rule.Analyze(signals)
+			matchedResults = append(matchedResults, rule.Analyze(signals))
 		}
 	}
 
+	if len(matchedResults) > 0 {
+		// Use the first matched result as the primary basis
+		primary := matchedResults[0]
+		primary.SchemaVersion = "v2"
+		primary.Findings = nil
+
+		// Convert all matched results to findings
+		for _, res := range matchedResults {
+			finding := resultToFinding(res)
+			if len(res.Findings) > 0 {
+				primary.Findings = append(primary.Findings, res.Findings...)
+			} else {
+				primary.Findings = append(primary.Findings, finding)
+			}
+		}
+
+		return primary
+	}
+
 	// 2. Fallback Mechanism
-	// If the pod is failing but NONE of our rules match the data, we return a 
-	// generic "Unknown" result. This prevents the CLI from crashing or printing nothing,
-	// No failure rules matched. Check if the pod is actually healthy!
 	if signals.Phase == "Running" || signals.Phase == "Succeeded" {
 		statusStr := "Running"
 		primaryReason := "Healthy"
@@ -37,7 +48,8 @@ func AnalyzePod(signals *kube.PodSignals) AnalysisResult {
 			primaryReason = "Completed"
 			summaryText = "All containers have completed successfully."
 		}
-		return AnalysisResult{
+		res := AnalysisResult{
+			SchemaVersion: "v2",
 			Resource:      "pod/" + signals.PodName,
 			Namespace:     signals.Namespace,
 			Status:        statusStr,
@@ -49,10 +61,13 @@ func AnalyzePod(signals *kube.PodSignals) AnalysisResult {
 			Evidence:   buildHealthyEvidence(signals),
 			NextChecks: nil, // Nothing to do!
 		}
+		res.Findings = append(res.Findings, resultToFinding(res))
+		return res
 	}
 
 	// True fallback if the pod is failing for an unknown reason
-	return AnalysisResult{
+	res := AnalysisResult{
+		SchemaVersion: "v2",
 		Resource:      "pod/" + signals.PodName,
 		Namespace:     signals.Namespace,
 		Status:        signals.Phase,
@@ -65,6 +80,29 @@ func AnalyzePod(signals *kube.PodSignals) AnalysisResult {
 		NextChecks: []string{
 			fmt.Sprintf("kubectl describe pod %s -n %s", signals.PodName, signals.Namespace),
 		},
+	}
+	res.Findings = append(res.Findings, resultToFinding(res))
+	return res
+}
+
+func resultToFinding(res AnalysisResult) Finding {
+	confidence := "high"
+	if res.Severity == "warning" {
+		confidence = "medium"
+	}
+	msg := ""
+	if len(res.Summary) > 0 {
+		msg = res.Summary[0]
+	}
+	return Finding{
+		Category:       "Pod",
+		ReasonCode:     res.PrimaryReason,
+		Confidence:     confidence,
+		AffectedObject: res.Resource,
+		Message:        msg,
+		Evidence:       res.Evidence,
+		FixCommands:    res.FixCommands,
+		NextChecks:     res.NextChecks,
 	}
 }
 

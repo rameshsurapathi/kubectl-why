@@ -16,7 +16,8 @@ func AnalyzeDeployment(
 
 	// ── All pods healthy ─────────────────────────────
 	if signals.AllHealthy {
-		return AnalysisResult{
+		res := AnalysisResult{
+			SchemaVersion: "v2",
 			Resource:      resource,
 			Namespace:     signals.Namespace,
 			Status:        "Healthy",
@@ -40,13 +41,16 @@ func AnalyzeDeployment(
 				},
 			},
 		}
+		res.Findings = append(res.Findings, resultToFinding(res))
+		return res
 	}
 
 	// ── Has failing pods — analyze the worst one ─────
 	if signals.FailingPodSignals == nil {
 		// We know pods are failing but couldn't
 		// get details — give basic info
-		return AnalysisResult{
+		res := AnalysisResult{
+			SchemaVersion: "v2",
 			Resource:      resource,
 			Namespace:     signals.Namespace,
 			Status:        "Degraded",
@@ -75,6 +79,8 @@ func AnalyzeDeployment(
 					signals.DeploymentName),
 			},
 		}
+		res.Findings = append(res.Findings, resultToFinding(res))
+		return res
 	}
 
 	// ── Analyze the worst failing pod ────────────────
