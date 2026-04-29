@@ -45,6 +45,13 @@ func (r *EvictedRule) Analyze(signals *kube.PodSignals) AnalysisResult {
 			{Label: "Node", Value: signals.NodeName},
 			{Label: "Message", Value: evictionMsg},
 		},
+		FixCommands: []FixCommand{
+			{
+				Description: "Delete the evicted pod (it will be recreated if managed by a controller)",
+				Command:     "kubectl delete pod " + signals.PodName + " -n " + signals.Namespace,
+				SafetyLevel: "destructive",
+			},
+		},
 		NextChecks: []string{
 			"Check node resource usage (kubectl top node " + signals.NodeName + ")",
 			"Review the exact eviction message in events",

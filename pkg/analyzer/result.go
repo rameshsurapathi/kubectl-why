@@ -37,6 +37,9 @@ type AnalysisResult struct {
 
 	// V2: Findings for deeper, multi-issue diagnosis
 	Findings []Finding `json:"findings,omitempty"`
+
+	// V3: Better reasoning output
+	Reasoning string `json:"reasoning,omitempty"` // Explicitly explain why this rule matched
 }
 
 // Finding represents a discrete problem found during diagnosis.
@@ -46,6 +49,7 @@ type Finding struct {
 	Confidence     string       `json:"confidence"`     // "high", "medium", "low"
 	AffectedObject string       `json:"affectedObject"` // e.g., "container/nginx"
 	Message        string       `json:"message"`
+	Reasoning      string       `json:"reasoning,omitempty"` // Explicitly explain why this finding was created
 	Evidence       []Evidence   `json:"evidence,omitempty"`
 	FixCommands    []FixCommand `json:"fixCommands,omitempty"`
 	NextChecks     []string     `json:"nextChecks,omitempty"`
@@ -53,9 +57,10 @@ type Finding struct {
 
 // Evidence represents a key/value pair shown in the terminal.
 type Evidence struct {
-	Label string       `json:"label"`
-	Value string       `json:"value"`
-	Bar   *ProgressBar `json:"bar,omitempty"` // Optional UI element to draw an ASCII bar chart (great for Memory/CPU limits)
+	Label      string       `json:"label"`
+	Value      string       `json:"value"`
+	Provenance string       `json:"provenance,omitempty"` // JSON Path or source of this evidence (e.g., pod.status.phase)
+	Bar        *ProgressBar `json:"bar,omitempty"` // Optional UI element to draw an ASCII bar chart (great for Memory/CPU limits)
 }
 
 type ProgressBar struct {
@@ -68,4 +73,5 @@ type ProgressBar struct {
 type FixCommand struct {
 	Description string `json:"description"` // e.g. "Increase memory limit to 1Gi"
 	Command     string `json:"command"`     // e.g. "kubectl set resources deployment database -c postgres --limits=memory=1Gi"
+	SafetyLevel string `json:"safetyLevel,omitempty"` // "inspect", "low-risk", "mutating", "destructive"
 }

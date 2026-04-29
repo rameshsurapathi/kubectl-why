@@ -3,7 +3,9 @@ package render
 import (
 	"encoding/json"
 	"fmt"
+	"strings"
 
+	"github.com/charmbracelet/lipgloss"
 	"github.com/rameshsurapathi/kubectl-why/pkg/analyzer"
 )
 
@@ -41,16 +43,62 @@ func ScanText(result analyzer.ScanResult, showHealthy bool) error {
 	}
 
 	fmt.Printf("  %s Findings\n", sectionDot.Render("●"))
-	printed := 0
+	
+	groups := map[string][]analyzer.AnalysisResult{
+		"Traffic Impact (Services, Ingress)":    {},
+		"Rollout Impact (Deployments, Rollouts)": {},
+		"Batch Impact (Jobs, CronJobs)":         {},
+		"Storage Impact (PVCs)":                 {},
+		"Scheduling Impact (Nodes, Pending)":    {},
+		"Workload Failures (Pods)":              {},
+	}
+
 	for _, item := range result.Results {
 		if item.Severity == "healthy" && !showHealthy {
 			continue
 		}
-		printScanItem(item)
-		printed++
+		
+		// Categorize
+		category := "Workload Failures (Pods)"
+		if strings.HasPrefix(item.Resource, "service/") || strings.HasPrefix(item.Resource, "ingress/") {
+			category = "Traffic Impact (Services, Ingress)"
+		} else if strings.HasPrefix(item.Resource, "deployment/") || strings.HasPrefix(item.Resource, "rollout/") {
+			category = "Rollout Impact (Deployments, Rollouts)"
+		} else if strings.HasPrefix(item.Resource, "job/") || strings.HasPrefix(item.Resource, "cronjob/") {
+			category = "Batch Impact (Jobs, CronJobs)"
+		} else if strings.HasPrefix(item.Resource, "pvc/") {
+			category = "Storage Impact (PVCs)"
+		} else if strings.HasPrefix(item.Resource, "node/") || item.Status == "Pending — cannot be scheduled" || item.Status == "Pending" {
+			category = "Scheduling Impact (Nodes, Pending)"
+		}
+		
+		groups[category] = append(groups[category], item)
 	}
+
+	printed := 0
+	orderedCategories := []string{
+		"Traffic Impact (Services, Ingress)",
+		"Rollout Impact (Deployments, Rollouts)",
+		"Batch Impact (Jobs, CronJobs)",
+		"Storage Impact (PVCs)",
+		"Scheduling Impact (Nodes, Pending)",
+		"Workload Failures (Pods)",
+	}
+
+	for _, cat := range orderedCategories {
+		items := groups[cat]
+		if len(items) == 0 {
+			continue
+		}
+		fmt.Printf("\n    %s\n", lipgloss.NewStyle().Foreground(colorWhite).Underline(true).Render(cat))
+		for _, item := range items {
+			printScanItem(item)
+			printed++
+		}
+	}
+
 	if printed == 0 {
-		fmt.Println(nextCheckStyle.Render("→  No unhealthy resources found."))
+		fmt.Println(nextCheckStyle.Render("\n→  No unhealthy resources found."))
 	}
 	fmt.Println()
 

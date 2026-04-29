@@ -77,6 +77,7 @@ func (r *NonZeroExitRule) Analyze(signals *kube.PodSignals) AnalysisResult {
 			{
 				Description: "Check container logs",
 				Command:     fmt.Sprintf("kubectl logs %s -n %s -c %s", signals.PodName, signals.Namespace, failingContainer),
+				SafetyLevel: "inspect",
 			},
 		},
 		NextChecks: []string{

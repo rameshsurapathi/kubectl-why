@@ -59,6 +59,7 @@ func AnalyzeNode(signals *kube.NodeSignals) AnalysisResult {
 				{
 					Description: "Uncordon the node",
 					Command:     fmt.Sprintf("kubectl uncordon %s", signals.Name),
+					SafetyLevel: "mutating",
 				},
 			},
 		})

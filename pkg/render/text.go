@@ -64,6 +64,20 @@ var (
 	reasonWarning = lipgloss.NewStyle().
 			Foreground(colorYellow)
 
+	// Safety levels
+	safetyInspect = lipgloss.NewStyle().
+			Foreground(colorBlue).
+			Bold(true)
+	safetyLowRisk = lipgloss.NewStyle().
+			Foreground(colorGreen).
+			Bold(true)
+	safetyMutating = lipgloss.NewStyle().
+			Foreground(colorYellow).
+			Bold(true)
+	safetyDestructive = lipgloss.NewStyle().
+			Foreground(colorRed).
+			Bold(true)
+
 	// Evidence value
 	evidenceValue = lipgloss.NewStyle().
 			Foreground(colorWhite)
@@ -187,29 +201,41 @@ func Text(result analyzer.AnalysisResult, opts Options) error {
 	}
 
 	// ── Explain ──────────────────────────────────────
-	if opts.Explain && len(result.Findings) > 0 {
-		fmt.Printf("  %s Explain\n",
-			sectionDot.Render("●"))
-		f := result.Findings[0]
-		fmt.Printf("    Primary Diagnosis: %s\n", f.ReasonCode)
-		fmt.Printf("    Confidence: %s\n", f.Confidence)
-		if f.AffectedObject != "" {
-			fmt.Printf("    Affected Object: %s\n", f.AffectedObject)
-		}
-		fmt.Println()
-	}
+	if opts.Explain {
+		hasReasoning := result.Reasoning != ""
+		hasFindings := len(result.Findings) > 0
 
-	// ── Runbook hint ─────────────────────────────────
-	// (Hidden for now until the separate Runbook tool is built)
-	/*
-		if result.RunbookHint != "" {
-			fmt.Println(dividerStyle.Render(
-				strings.Repeat("─", 65)))
-			fmt.Println(runbookHint.Render(
-				"→  " + result.RunbookHint))
+		if hasReasoning || hasFindings {
+			fmt.Printf("  %s Explain\n", sectionDot.Render("●"))
+			if hasReasoning {
+				fmt.Printf("    Reasoning: %s\n", result.Reasoning)
+			}
+			if hasFindings {
+				f := result.Findings[0]
+				fmt.Printf("    Primary Diagnosis: %s\n", f.ReasonCode)
+				fmt.Printf("    Confidence: %s\n", f.Confidence)
+				if f.AffectedObject != "" {
+					fmt.Printf("    Affected Object: %s\n", f.AffectedObject)
+				}
+				if f.Reasoning != "" {
+					fmt.Printf("    Finding Reasoning: %s\n", f.Reasoning)
+				}
+			}
+			
+			// Print provenance for evidence
+			hasProvenance := false
+			for _, e := range result.Evidence {
+				if e.Provenance != "" {
+					if !hasProvenance {
+						fmt.Println("\n    Evidence Provenance:")
+						hasProvenance = true
+					}
+					fmt.Printf("      %s: %s\n", e.Label, e.Provenance)
+				}
+			}
 			fmt.Println()
 		}
-	*/
+	}
 
 	return nil
 }
@@ -304,9 +330,30 @@ func printEvidence(e analyzer.Evidence) {
 }
 
 func printFixCommand(fix analyzer.FixCommand) {
-	if fix.Description != "" {
-		fmt.Println(fixComment.Render(
-			"# " + fix.Description))
+	desc := fix.Description
+	if fix.SafetyLevel != "" {
+		var badge string
+		switch fix.SafetyLevel {
+		case "inspect":
+			badge = safetyInspect.Render("[inspect]")
+		case "low-risk":
+			badge = safetyLowRisk.Render("[low-risk]")
+		case "mutating":
+			badge = safetyMutating.Render("[mutating]")
+		case "destructive":
+			badge = safetyDestructive.Render("[destructive]")
+		default:
+			badge = lipgloss.NewStyle().Foreground(colorGray).Render("[" + fix.SafetyLevel + "]")
+		}
+		if desc != "" {
+			desc = badge + " " + desc
+		} else {
+			desc = badge
+		}
+	}
+
+	if desc != "" {
+		fmt.Println(fixComment.Render("# " + desc))
 	}
 
 	// Multi-line command support

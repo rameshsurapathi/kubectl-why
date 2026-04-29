@@ -39,10 +39,10 @@ func (r *OOMKilledRule) Analyze(signals *kube.PodSignals) AnalysisResult {
 		isLastOOM := c.LastState.IsTerminated && (c.LastState.ExitCode == 137 || c.LastState.TerminatedReason == "OOMKilled")
 		isCurrOOM := c.State.IsTerminated && (c.State.ExitCode == 137 || c.State.TerminatedReason == "OOMKilled")
 		if isLastOOM || isCurrOOM {
-			evidence = append(evidence, Evidence{Label: "Container", Value: c.Name})
-			evidence = append(evidence, Evidence{Label: "Exit Code", Value: "137"})
-			evidence = append(evidence, Evidence{Label: "Reason", Value: "OOMKilled"})
-			evidence = append(evidence, Evidence{Label: "Restarts", Value: fmt.Sprintf("%d", c.RestartCount)})
+			evidence = append(evidence, Evidence{Label: "Container", Value: c.Name, Provenance: fmt.Sprintf("pod.status.containerStatuses[name=%s]", c.Name)})
+			evidence = append(evidence, Evidence{Label: "Exit Code", Value: "137", Provenance: fmt.Sprintf("pod.status.containerStatuses[name=%s].state.terminated.exitCode", c.Name)})
+			evidence = append(evidence, Evidence{Label: "Reason", Value: "OOMKilled", Provenance: fmt.Sprintf("pod.status.containerStatuses[name=%s].state.terminated.reason", c.Name)})
+			evidence = append(evidence, Evidence{Label: "Restarts", Value: fmt.Sprintf("%d", c.RestartCount), Provenance: fmt.Sprintf("pod.status.containerStatuses[name=%s].restartCount", c.Name)})
 			break
 		}
 	}
@@ -59,16 +59,19 @@ func (r *OOMKilledRule) Analyze(signals *kube.PodSignals) AnalysisResult {
 		},
 		Evidence:   evidence,
 		RecentLogs: signals.RecentLogs,
+		Reasoning: "The pod container was terminated by the OOM killer. The exit code 137 indicates it was killed by a SIGKILL signal from the kernel.",
 		FixCommands: []FixCommand{
 			{
 				Description: "Increase memory limit",
 				Command: fmt.Sprintf(
 					"kubectl set resources deployment/<deployment-name> --limits=memory=1Gi -n %s", signals.Namespace),
+				SafetyLevel: "mutating",
 			},
 			{
 				Description: "Check current memory usage",
 				Command: fmt.Sprintf(
 					"kubectl top pod %s -n %s", signals.PodName, signals.Namespace),
+				SafetyLevel: "inspect",
 			},
 		},
 		NextChecks: []string{
