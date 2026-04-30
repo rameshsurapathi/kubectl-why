@@ -10,6 +10,7 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
+	discoveryv1 "k8s.io/api/discovery/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -196,6 +197,23 @@ func TestAnalyzeService_States(t *testing.T) {
 	assert.Equal(t, "Healthy", healthy.Status)
 	assert.Equal(t, "SERVICE_HEALTHY", healthy.PrimaryReason)
 	assert.Equal(t, "healthy", healthy.Severity)
+
+	manualEndpoints := analyzer.AnalyzeService(&kube.ServiceSignals{
+		Name:      "kubernetes",
+		Namespace: "default",
+		Type:      "ClusterIP",
+		EndpointSlices: []discoveryv1.EndpointSlice{
+			{
+				Endpoints: []discoveryv1.Endpoint{
+					{},
+				},
+			},
+		},
+	})
+
+	assert.Equal(t, "Healthy", manualEndpoints.Status)
+	assert.Equal(t, "MANUAL_ENDPOINTS", manualEndpoints.PrimaryReason)
+	assert.Equal(t, "healthy", manualEndpoints.Severity)
 }
 
 func TestAnalyzePVC_ProvisioningAndWaitForFirstConsumer(t *testing.T) {

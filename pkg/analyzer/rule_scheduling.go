@@ -1,6 +1,7 @@
 package analyzer
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/rameshsurapathi/kubectl-why/pkg/kube"
@@ -54,6 +55,13 @@ func (r *PendingRule) Analyze(signals *kube.PodSignals) AnalysisResult {
 		Evidence: []Evidence{
 			{Label: "Phase", Value: signals.Phase},
 			{Label: "Scheduler Msg", Value: msg},
+		},
+		FixCommands: []FixCommand{
+			{
+				Description: "Check recent scheduling events",
+				Command:     fmt.Sprintf("kubectl get events -n %s --field-selector involvedObject.name=%s", signals.Namespace, signals.PodName),
+				SafetyLevel: "inspect",
+			},
 		},
 		NextChecks: []string{
 			"Check if nodes have sufficient CPU and memory requested by this pod",
