@@ -1,0 +1,30 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: pending-sts
+spec:
+  serviceName: "pending-sts"
+  replicas: 1
+  selector:
+    matchLabels:
+      app: pending-sts
+  template:
+    metadata:
+      labels:
+        app: pending-sts
+    spec:
+      containers:
+      - name: app
+        image: nginx
+        volumeMounts:
+        - name: data
+          mountPath: /data
+  volumeClaimTemplates:
+  - metadata:
+      name: data
+    spec:
+      accessModes: [ "ReadWriteOnce" ]
+      storageClassName: non-existent-storage-class
+      resources:
+        requests:
+          storage: 1Gi

@@ -1,0 +1,28 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: orphaned-service
+spec:
+  ports:
+  - port: 80
+  selector:
+    app: completely-non-existent-app
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: bad-daemonset
+spec:
+  selector:
+    matchLabels:
+      app: bad-ds
+  template:
+    metadata:
+      labels:
+        app: bad-ds
+    spec:
+      nodeSelector:
+        this-node-label: does-not-exist
+      containers:
+      - name: app
+        image: nginx

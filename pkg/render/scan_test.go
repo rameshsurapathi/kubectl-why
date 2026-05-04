@@ -40,7 +40,7 @@ func TestScanText_HidesHealthyByDefault(t *testing.T) {
 
 	assert.Contains(t, output, "namespace/default")
 	assert.Contains(t, output, "pod/bad")
-	assert.Contains(t, output, "confidence high")
+	assert.Contains(t, output, "IMAGE_PULL_FAILED")
 	assert.NotContains(t, output, "pod/good")
 }
 

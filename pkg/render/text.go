@@ -113,6 +113,14 @@ var (
 	nextCheckStyle = lipgloss.NewStyle().
 			Foreground(colorGray).
 			MarginLeft(4)
+
+	// Tree connector styles
+	treeConnector = lipgloss.NewStyle().
+			Foreground(lipgloss.Color("238"))
+
+	// Dim text for secondary info
+	dimStyle = lipgloss.NewStyle().
+			Foreground(lipgloss.Color("243"))
 )
 
 // Options configures the render output.

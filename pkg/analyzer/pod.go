@@ -2,6 +2,7 @@ package analyzer
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/rameshsurapathi/kubectl-why/pkg/kube"
 )
@@ -92,7 +93,7 @@ func resultToFinding(res AnalysisResult) Finding {
 	}
 	msg := ""
 	if len(res.Summary) > 0 {
-		msg = res.Summary[0]
+		msg = strings.Join(res.Summary, " ")
 	}
 	return Finding{
 		Category:       "Pod",

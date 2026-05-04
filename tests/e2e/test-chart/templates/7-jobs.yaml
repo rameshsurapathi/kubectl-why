@@ -1,0 +1,29 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: failing-job
+spec:
+  backoffLimit: 0
+  template:
+    spec:
+      containers:
+      - name: bad-job
+        image: busybox
+        command: ["/bin/sh", "-c", "exit 1"]
+      restartPolicy: Never
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: suspended-cronjob
+spec:
+  schedule: "0 0 31 2 *" # Feb 31st (invalid or never runs, but k8s might accept it or we can just suspend it)
+  suspend: true
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          containers:
+          - name: hello
+            image: busybox
+          restartPolicy: OnFailure

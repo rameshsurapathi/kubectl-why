@@ -1,0 +1,20 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: missing-config-deploy
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: missing-config
+  template:
+    metadata:
+      labels:
+        app: missing-config
+    spec:
+      containers:
+      - name: app
+        image: nginx:latest
+        envFrom:
+        - configMapRef:
+            name: non-existent-configmap
